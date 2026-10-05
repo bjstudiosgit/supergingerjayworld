@@ -50,7 +50,7 @@ export class PassivePlayer extends Player {
         return passivePowerupImages[0];
     }
 
-    draw(ctx: CanvasRenderingContext2D, camX: number) {
+    draw(ctx: CanvasRenderingContext2D, camX: number, camY: number = 0) {
         ctx.save();
         
         // Flashing effect if invincible
@@ -65,7 +65,7 @@ export class PassivePlayer extends Player {
         }
 
         let drawX = this.x - camX;
-        let drawY = this.y;
+        let drawY = this.y - camY;
 
         // Flip context if facing left
         if (!this.facingRight) {
@@ -75,8 +75,8 @@ export class PassivePlayer extends Player {
             drawY = 0;
         }
 
-        const isMoving = Math.abs(this.vx) > 0.3;
-        const animationSpeed = 15; 
+        const isMoving = this.onGround && Math.abs(this.vx) > 0.3;
+        const animationSpeed = this.getAnimationSpeed(); 
         const walkCycle = Math.floor(this.walkDistance / animationSpeed);
         
         // Improved bounce mechanism: smooth sine wave based on walk distance
@@ -92,7 +92,7 @@ export class PassivePlayer extends Player {
         }
 
         if (img && img.complete && img.naturalWidth > 0) {
-            ctx.drawImage(img, drawX, drawY + bounce, this.w, this.h);
+            this.drawSprite(ctx, img, drawX, drawY + bounce);
         } else {
             ctx.fillStyle = this.state === "big" ? "#0000FF" : "#000000";
             ctx.fillRect(drawX, drawY + bounce, this.w, this.h);

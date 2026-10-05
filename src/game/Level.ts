@@ -76,6 +76,8 @@ export function getTiles(): Tile[] {
 }
 
 export function getClouds(): Cloud[] {
+    if (currentLevelId === '1-1-cave') return [];
+    
     const clouds: Cloud[] = [];
     
     const createCloud = (x: number, y: number, layer: number, parallaxSpeed: number, driftSpeed: number): Cloud => {
@@ -111,6 +113,8 @@ export function getClouds(): Cloud[] {
 }
 
 export function getScenery(): Scenery[] {
+    if (currentLevelId === '1-1-cave') return [];
+    
     const scenery: Scenery[] = [];
     
     if (currentLevelId === '1-3') {

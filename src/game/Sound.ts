@@ -8,7 +8,7 @@ function getAudioContext() {
     return audioCtx;
 }
 
-export type SoundType = 'jump' | 'stomp' | 'hit' | 'powerup' | 'coin' | 'firework' | 'extralife' | 'gingerjesus' | 'nightmare' | 'ackhiiii' | 'scream' | 'ohgosh' | 'pushin' | 'fgingerjay' | 'ryno_itstime' | 'tymeless_letsgoo';
+export type SoundType = 'jump' | 'stomp' | 'hit' | 'powerup' | 'coin' | 'firework' | 'pipe' | 'extralife' | 'gingerjesus' | 'nightmare' | 'ackhiiii' | 'scream' | 'ohgosh' | 'pushin' | 'fgingerjay' | 'ryno_itstime' | 'tymeless_letsgoo';
 
 const SOUND_FILES: Record<string, string> = {
     extralife: '/soundeffects/extralife.mp3',
@@ -102,6 +102,15 @@ export async function playSound(type: SoundType, volume: number = 1.0) {
             gain.gain.linearRampToValueAtTime(0, now + 0.3);
             osc.start(now);
             osc.stop(now + 0.3);
+        } else if (type === 'pipe') {
+            // Quick downward sweep to mimic a pipe / warp sound
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(700, now);
+            osc.frequency.exponentialRampToValueAtTime(180, now + 0.22);
+            gain.gain.setValueAtTime(0.12 * volume, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+            osc.start(now);
+            osc.stop(now + 0.25);
         } else if (type === 'coin') {
             osc.type = 'square';
             osc.frequency.setValueAtTime(987.77, now); // B5
@@ -140,5 +149,44 @@ export async function playSound(type: SoundType, volume: number = 1.0) {
         }
     } catch (e) {
         console.warn("Audio not supported or failed to play", e);
+    }
+}
+
+export async function playInvincibilityTune(volume: number = 0.9) {
+    try {
+        const ctx = getAudioContext();
+        if (ctx.state === 'suspended') await ctx.resume();
+
+        const now = ctx.currentTime;
+        const masterGain = ctx.createGain();
+        masterGain.gain.setValueAtTime(0.12 * volume, now);
+        masterGain.connect(ctx.destination);
+
+        const notesHz = [523.25, 659.25, 783.99, 1046.5, 987.77, 783.99, 659.25, 523.25]; // C5 E5 G5 C6 B5 G5 E5 C5
+        const step = 0.08;
+
+        for (let i = 0; i < notesHz.length; i++) {
+            const t0 = now + i * step;
+            const t1 = t0 + step * 0.9;
+
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(notesHz[i], t0);
+
+            // Quick chiptune-ish envelope
+            gain.gain.setValueAtTime(0.0001, t0);
+            gain.gain.exponentialRampToValueAtTime(1.0, t0 + 0.005);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t1);
+
+            osc.connect(gain);
+            gain.connect(masterGain);
+
+            osc.start(t0);
+            osc.stop(t1);
+        }
+    } catch (e) {
+        console.warn("Audio not supported or failed to play invincibility tune", e);
     }
 }

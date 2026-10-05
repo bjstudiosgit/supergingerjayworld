@@ -8,8 +8,13 @@ tymelessWalkImages[1].src = '/motion/tymeless/walk2.png';
 tymelessWalkImages[2].src = '/motion/tymeless/walk3.png';
 tymelessWalkImages[3].src = '/motion/tymeless/walk4.png';
 
-const tymelessPowerupImg = new Image();
-tymelessPowerupImg.src = '/motion/tymeless/powerup1.png';
+const tymelessPowerupImages = [
+    new Image(), new Image(), new Image(), new Image()
+];
+tymelessPowerupImages[0].src = '/motion/tymeless/powerup1.png';
+tymelessPowerupImages[1].src = '/motion/tymeless/powerup2.png';
+tymelessPowerupImages[2].src = '/motion/tymeless/powerup3.png';
+tymelessPowerupImages[3].src = '/motion/tymeless/powerup4.png';
 
 export class TymelessPlayer extends Player {
     constructor() {
@@ -17,12 +22,9 @@ export class TymelessPlayer extends Player {
         this.characterId = "tymeless";
         this.w = 48;
         this.h = 72;
-        // Different dynamics: Slightly faster and higher jump
-        this.moveSpeed = 3.5;
-        this.jumpImpulse = -12;
     }
 
-    draw(ctx: CanvasRenderingContext2D, camX: number) {
+    draw(ctx: CanvasRenderingContext2D, camX: number, camY: number = 0) {
         ctx.save();
         
         // Flashing effect if invincible
@@ -37,7 +39,7 @@ export class TymelessPlayer extends Player {
         }
 
         let drawX = this.x - camX;
-        let drawY = this.y;
+        let drawY = this.y - camY;
 
         // Flip context if facing left
         if (!this.facingRight) {
@@ -47,39 +49,24 @@ export class TymelessPlayer extends Player {
             drawY = 0;
         }
 
-        const isMoving = Math.abs(this.vx) > 0.5;
-        const animationSpeed = 12; // Faster animation for faster speed
+        const isMoving = this.onGround && Math.abs(this.vx) > 0.3;
+        const animationSpeed = this.getAnimationSpeed(); 
         const walkCycle = Math.floor(this.walkDistance / animationSpeed);
         
-        const bounceAmount = 4; // More bounce
+        const bounceAmount = 3; 
         const bounce = isMoving ? Math.abs(Math.sin((this.walkDistance / animationSpeed) * Math.PI)) * -bounceAmount : 0;
 
-        if (this.state === "big" || this.isInvincible) {
-            const img = tymelessPowerupImg;
-            if (img.complete && img.naturalWidth > 0) {
-                const frameWidth = img.naturalHeight;
-                const maxFrames = Math.max(1, Math.floor(img.naturalWidth / frameWidth));
-                const frameIndex = isMoving ? (walkCycle % maxFrames) : 0;
-                
-                ctx.drawImage(
-                    img, 
-                    frameIndex * frameWidth, 0, frameWidth, img.naturalHeight,
-                    drawX, drawY + bounce, this.w, this.h
-                );
-            } else {
-                ctx.fillStyle = "#00FF00";
-                ctx.fillRect(drawX, drawY + bounce, this.w, this.h);
-            }
+        const images = (this.state === "big" || this.isInvincible) ? tymelessPowerupImages : tymelessWalkImages;
+        const img = images[isMoving ? (walkCycle % 4) : 0];
+
+        if (img && img.complete && img.naturalWidth > 0) {
+            this.drawSprite(ctx, img, drawX, drawY + bounce);
         } else {
-            const img = tymelessWalkImages[isMoving ? (walkCycle % 4) : 0];
-            if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, drawX, drawY + bounce, this.w, this.h);
-            } else {
-                ctx.fillStyle = "#00FF00";
-                ctx.fillRect(drawX, drawY + bounce, this.w, this.h);
-            }
+            ctx.fillStyle = "#00FF00";
+            ctx.fillRect(drawX, drawY + bounce, this.w, this.h);
         }
 
         ctx.restore();
     }
 }
+

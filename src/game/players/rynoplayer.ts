@@ -22,12 +22,9 @@ export class RynoPlayer extends Player {
         this.characterId = "ryno";
         this.w = 48;
         this.h = 72;
-        // Standard dynamics for now
-        this.moveSpeed = 3;
-        this.jumpImpulse = -10;
     }
 
-    draw(ctx: CanvasRenderingContext2D, camX: number) {
+    draw(ctx: CanvasRenderingContext2D, camX: number, camY: number = 0) {
         ctx.save();
         
         // Flashing effect if invincible
@@ -42,7 +39,7 @@ export class RynoPlayer extends Player {
         }
 
         let drawX = this.x - camX;
-        let drawY = this.y;
+        let drawY = this.y - camY;
 
         // Flip context if facing left
         if (!this.facingRight) {
@@ -52,17 +49,17 @@ export class RynoPlayer extends Player {
             drawY = 0;
         }
 
-        const isMoving = Math.abs(this.vx) > 0.5;
-        const animationSpeed = 12; 
+        const isMoving = this.onGround && Math.abs(this.vx) > 0.3;
+        const animationSpeed = this.getAnimationSpeed(); 
         const walkCycle = Math.floor(this.walkDistance / animationSpeed);
         
-        const bounceAmount = 4; 
+        const bounceAmount = 3; 
         const bounce = isMoving ? Math.abs(Math.sin((this.walkDistance / animationSpeed) * Math.PI)) * -bounceAmount : 0;
 
         const images = (this.state === "big" || this.isInvincible) ? rynoPowerupImages : rynoWalkImages;
         const img = images[isMoving ? (walkCycle % 4) : 0];
         if (img && img.complete && img.naturalWidth > 0) {
-            ctx.drawImage(img, drawX, drawY + bounce, this.w, this.h);
+            this.drawSprite(ctx, img, drawX, drawY + bounce);
         } else {
             ctx.fillStyle = "#808080"; // Gray fallback for Ryno
             ctx.fillRect(drawX, drawY + bounce, this.w, this.h);

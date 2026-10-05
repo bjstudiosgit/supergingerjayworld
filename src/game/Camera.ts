@@ -3,48 +3,51 @@ import { Player } from './players/Player';
 
 export const camera = { 
     x: 0,
+    y: 0,
     lookAhead: 0
 };
 
-export function updateCamera(player: Player, canvasWidth: number, keys: Record<string, boolean>) {
-    const isMobile = window.innerWidth < 768;
+export function getMobileCameraY(player: Player, canvasWidth: number, canvasHeight: number) {
+    const verticalAnchor = canvasHeight < canvasWidth ? 0.7 : 0.88;
+    return Math.max(0, player.y + player.h - canvasHeight * verticalAnchor);
+}
 
-    // 🎯 Movement intent
-    const moveRight = keys['KeyD'] || keys['ArrowRight'];
-    const moveLeft = keys['KeyA'] || keys['ArrowLeft'];
+export function updateCamera(player: Player, canvasWidth: number, canvasHeight: number, keys: Record<string, boolean>, isMobile: boolean) {
 
-    let intent = 0;
-    if (moveRight) intent = 1;
-    if (moveLeft) intent = -1;
+    // 🎯 Use facing direction instead of intent for more stable lookahead
+    const lookAheadDirection = player.facingRight ? 1 : -1;
+    
+    // Adjust lookahead based on virtual width
+    const baseLookAhead = isMobile ? canvasWidth * 0.15 : 100;
+    const targetLookAhead = lookAheadDirection * baseLookAhead;
 
-    // 🚀 MUCH stronger mobile lookahead
-    const baseLookAhead = isMobile ? 220 : 120;
-    const velocityInfluence = isMobile ? 60 : 40;
+    // Smoother, persistent lookahead
+    camera.lookAhead += (targetLookAhead - camera.lookAhead) * 0.05;
 
-    const inputLookAhead = intent * baseLookAhead;
-    const velocityLookAhead = player.vx * velocityInfluence;
-
-    const targetLookAhead = inputLookAhead * 0.8 + velocityLookAhead * 0.2;
-
-    camera.lookAhead += (targetLookAhead - camera.lookAhead) * 0.15;
-
-    const maxLook = isMobile ? 260 : 150;
-    camera.lookAhead = Math.max(-maxLook, Math.min(maxLook, camera.lookAhead));
-
-    // 🎯 SHIFT PLAYER LEFT ON MOBILE (BIG WIN)
     const screenOffset = isMobile ? canvasWidth * 0.35 : canvasWidth / 2;
+    const targetX = player.x - screenOffset + player.w / 2 + camera.lookAhead;
 
-    const target = player.x - screenOffset + player.w / 2 + camera.lookAhead;
+    // 🎥 Horizontal Smooth follow with deadzone
+    const diffX = targetX - camera.x;
+    const deadzone = 5;
+    
+    if (Math.abs(diffX) > deadzone) {
+        const lerp = isMobile ? 0.1 : 0.08;
+        camera.x += diffX * lerp;
+    }
 
-    // ⚡ Cleaner lerp (remove over-complication)
-    const baseLerp = isMobile ? 0.12 : CONFIG.cameraLerp;
-    const speedBoost = Math.min(Math.abs(player.vx) / 5, 1) * 0.1;
+    // 🎯 VERTICAL CAMERA (New for Full Bleed Mobile)
+    let targetY = 0;
+    
+    if (isMobile) {
+        // Keep the player's feet above the controls on short landscape screens.
+        targetY = getMobileCameraY(player, canvasWidth, canvasHeight);
+    }
+    
+    // Smooth vertical follow
+    if (!(camera as any).y) (camera as any).y = 0;
+    (camera as any).y += (targetY - ((camera as any).y || 0)) * 0.1;
 
-    const lerp = baseLerp + speedBoost;
-
-    // 🎥 Smooth follow
-    camera.x += (target - camera.x) * lerp;
-
-    // 🧱 Clamp
+    // 🧱 Clamp Horizontal
     camera.x = Math.max(0, camera.x);
 }

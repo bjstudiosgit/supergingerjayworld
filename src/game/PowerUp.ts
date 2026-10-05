@@ -18,6 +18,22 @@ const gloveImages = Array.from({ length: 9 }, (_, i) => {
     return img;
 });
 
+const itemImages: Record<string, HTMLImageElement> = {
+    'tymeless': new Image(),
+    'deeno': new Image(),
+    'ryno': new Image(),
+    'roman': new Image(),
+    'grams': new Image(),
+    'passive': new Image(),
+};
+
+itemImages['tymeless'].src = '/motion/items/reapersuite.png';
+itemImages['deeno'].src = '/motion/items/happymeal.png';
+itemImages['ryno'].src = '/motion/items/whitepowder.png';
+itemImages['roman'].src = '/motion/items/yoghurt.png';
+itemImages['grams'].src = '/motion/items/cannabis.png';
+itemImages['passive'].src = '/motion/items/spider.png';
+
 export class PowerUp {
     x: number;
     y: number;
@@ -30,11 +46,14 @@ export class PowerUp {
     characterId: string;
     animationTimer: number = 0;
     isInvincibilityMushroom: boolean = false;
+    isHeart: boolean = false;
 
-    constructor(x: number, y: number, characterId: string) {
+    constructor(x: number, y: number, characterId: string, isInvincibility: boolean = false, isHeart: boolean = false) {
         this.x = x;
         this.y = y;
         this.characterId = characterId;
+        this.isInvincibilityMushroom = isInvincibility;
+        this.isHeart = isHeart;
     }
 
     update() {
@@ -43,10 +62,10 @@ export class PowerUp {
         }
     }
 
-    draw(ctx: CanvasRenderingContext2D, camX: number) {
+    draw(ctx: CanvasRenderingContext2D, camX: number, camY: number = 0) {
         if (!this.active) return;
         const drawX = this.x - camX;
-        const drawY = this.y;
+        const drawY = this.y - camY;
 
         if (this.isInvincibilityMushroom) {
             // ⭐ GINGA DRINK ANIMATION (Replaces Invincibility Mushroom)
@@ -64,8 +83,34 @@ export class PowerUp {
             return;
         }
 
+        if (this.isHeart) {
+            // ⭐ ANIMATED HEART (Extra Life)
+            ctx.save();
+            const bounce = Math.sin(this.animationTimer / 10) * 5;
+            ctx.translate(drawX + this.w / 2, drawY + this.h / 2 + bounce);
+            
+            ctx.fillStyle = "#FF1744"; // Vivid Red
+            ctx.beginPath();
+            const size = 12;
+            ctx.moveTo(0, size / 4);
+            ctx.bezierCurveTo(0, 0, -size, 0, -size, size / 2);
+            ctx.bezierCurveTo(-size, size, 0, size * 1.5, 0, size * 2);
+            ctx.bezierCurveTo(0, size * 1.5, size, size, size, size / 2);
+            ctx.bezierCurveTo(size, 0, 0, 0, 0, size / 4);
+            ctx.fill();
+            
+            // Highlight
+            ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+            ctx.beginPath();
+            ctx.arc(-size / 3, size / 3, size / 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+            return;
+        }
+
         if (this.characterId === 'ginja') {
-            // ⭐ GOLDEN SPOON (Restored)
+            // ⭐ GOLDEN SPOON
             const frameIndex = Math.floor(this.animationTimer / 5) % 9;
             const currentImg = spoonImages[frameIndex];
             
@@ -79,27 +124,6 @@ export class PowerUp {
                 ctx.ellipse(drawX + 10, drawY + 4, 6, 8, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
-        } else if (this.characterId === 'passive') {
-            // Draw Spider
-            ctx.fillStyle = "#2C3E50"; // Dark body
-            ctx.beginPath();
-            ctx.arc(drawX + 10, drawY + 12, 6, 0, Math.PI * 2);
-            ctx.fill();
-            // Legs
-            ctx.strokeStyle = "#2C3E50";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            // Left legs
-            ctx.moveTo(drawX + 6, drawY + 12); ctx.lineTo(drawX, drawY + 8);
-            ctx.moveTo(drawX + 6, drawY + 12); ctx.lineTo(drawX, drawY + 16);
-            // Right legs
-            ctx.moveTo(drawX + 14, drawY + 12); ctx.lineTo(drawX + 20, drawY + 8);
-            ctx.moveTo(drawX + 14, drawY + 12); ctx.lineTo(drawX + 20, drawY + 16);
-            ctx.stroke();
-            // Eyes
-            ctx.fillStyle = "#E74C3C"; // Red eyes
-            ctx.fillRect(drawX + 6, drawY + 10, 2, 2);
-            ctx.fillRect(drawX + 12, drawY + 10, 2, 2);
         } else if (this.characterId === 'darren') {
             // ⭐ ANIMATED BOXING GLOVE
             const frameIndex = Math.floor(this.animationTimer / 5) % 9;
@@ -109,45 +133,67 @@ export class PowerUp {
                 ctx.drawImage(currentImg, drawX - 6, drawY - 6, 32, 32);
             } else {
                 // Fallback Boxing Glove
-                ctx.fillStyle = "#E74C3C"; // Red glove
+                ctx.fillStyle = "#E74C3C";
                 ctx.beginPath();
-                ctx.arc(drawX + 12, drawY + 8, 8, 0, Math.PI * 2); // Main part
+                ctx.arc(drawX + 12, drawY + 8, 8, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.fillRect(drawX + 4, drawY + 8, 16, 10); // Wrist area
-                ctx.fillStyle = "#C0392B"; // Darker red thumb
+                ctx.fillRect(drawX + 4, drawY + 8, 16, 10);
+                ctx.fillStyle = "#C0392B";
                 ctx.beginPath();
                 ctx.arc(drawX + 6, drawY + 10, 4, 0, Math.PI * 2);
                 ctx.fill();
-                // White wristband
                 ctx.fillStyle = "#FFFFFF";
                 ctx.fillRect(drawX + 4, drawY + 16, 16, 4);
             }
-        } else if (this.characterId === 'roman' || this.characterId === 'passive' || this.characterId === 'grams') {
-            // ⭐ YOGHURT POWERUP
-            ctx.fillStyle = "#FDFEFE"; // White yoghurt cup
-            ctx.beginPath();
-            ctx.moveTo(drawX + 4, drawY + 4);
-            ctx.lineTo(drawX + 16, drawY + 4);
-            ctx.lineTo(drawX + 14, drawY + 20);
-            ctx.lineTo(drawX + 6, drawY + 20);
-            ctx.closePath();
-            ctx.fill();
-            // Lid
-            ctx.fillStyle = "#3498DB"; // Blue lid
-            ctx.fillRect(drawX + 2, drawY + 2, 16, 4);
-            // Label
-            ctx.fillStyle = "#E74C3C"; // Red label
-            ctx.fillRect(drawX + 6, drawY + 10, 8, 4);
         } else {
-            // Default Mushroom
-            ctx.fillStyle = "#2ecc71"; // green mushroom
-            ctx.fillRect(drawX, drawY, this.w, this.h);
-            
-            // Mushroom spots
-            ctx.fillStyle = "white";
-            ctx.fillRect(drawX + 4, drawY + 4, 4, 4);
-            ctx.fillRect(drawX + 12, drawY + 4, 4, 4);
-            ctx.fillRect(drawX + 8, drawY + 12, 4, 4);
+            // ⭐ NEW CUSTOM ITEM IMAGES
+            const customImg = itemImages[this.characterId];
+            if (customImg && customImg.complete && customImg.naturalWidth > 0) {
+                // Apply a small bounce animation
+                const bounce = Math.sin(this.animationTimer / 10) * 3;
+                ctx.drawImage(customImg, drawX - 6, drawY - 6 + bounce, 32, 32);
+            } else {
+                // Specific Draw logic if image fails or for special cases
+                if (this.characterId === 'passive') {
+                    // Draw Spider Fallback
+                    ctx.fillStyle = "#2C3E50"; 
+                    ctx.beginPath();
+                    ctx.arc(drawX + 10, drawY + 12, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = "#2C3E50";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(drawX + 6, drawY + 12); ctx.lineTo(drawX, drawY + 8);
+                    ctx.moveTo(drawX + 6, drawY + 12); ctx.lineTo(drawX, drawY + 16);
+                    ctx.moveTo(drawX + 14, drawY + 12); ctx.lineTo(drawX + 20, drawY + 8);
+                    ctx.moveTo(drawX + 14, drawY + 12); ctx.lineTo(drawX + 20, drawY + 16);
+                    ctx.stroke();
+                    ctx.fillStyle = "#E74C3C";
+                    ctx.fillRect(drawX + 6, drawY + 10, 2, 2);
+                    ctx.fillRect(drawX + 12, drawY + 10, 2, 2);
+                } else if (this.characterId === 'roman' || this.characterId === 'grams') {
+                    // Fallback Yoghurt/Item
+                    ctx.fillStyle = "#FDFEFE";
+                    ctx.beginPath();
+                    ctx.moveTo(drawX + 4, drawY + 4);
+                    ctx.lineTo(drawX + 16, drawY + 4);
+                    ctx.lineTo(drawX + 14, drawY + 20);
+                    ctx.lineTo(drawX + 6, drawY + 20);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = this.characterId === 'grams' ? "#27AE60" : "#3498DB";
+                    ctx.fillRect(drawX + 2, drawY + 2, 16, 4);
+                } else {
+                    // Default Mushroom
+                    ctx.fillStyle = "#2ecc71";
+                    ctx.fillRect(drawX, drawY, this.w, this.h);
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(drawX + 4, drawY + 4, 4, 4);
+                    ctx.fillRect(drawX + 12, drawY + 4, 4, 4);
+                    ctx.fillRect(drawX + 8, drawY + 12, 4, 4);
+                }
+            }
         }
     }
 }
+

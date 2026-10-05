@@ -51,7 +51,7 @@ export const generateMap = (): string[] => {
     }
 
     // --- GAPS ---
-    const gaps: number[] = [60, 61, 62, 120, 121, 190, 191]; 
+    const gaps: number[] = [60, 61, 120, 121, 190, 191]; 
     gaps.forEach(x => {
         if (x < width) {
             map[14][x] = '.';
@@ -62,32 +62,40 @@ export const generateMap = (): string[] => {
     // --- LEVEL DESIGN ---
 
     // Part 1: Intro
+    place(8, 11, 'cccccc');
     place(15, 9, 'B?B?B');
     place(25, 9, 'BB?BB');
     pipe(35, 2);
-    pipe(45, 3);
+    pipe(45, 2);
     pipe(55, 2);
+    place(57, 9, 'cccccccc');
 
     // Part 2: Middle Jumps
     place(70, 10, 'BBBB');
-    place(72, 6, 'c?c');
+    place(72, 6, 'B?B');
     place(80, 10, 'BBBB');
-    pipe(95, 4);
+    place(83, 7, 'ccccc');
+    pipe(95, 2);
 
     // Part 3: High Platforms
     place(110, 8, 'BBBBBB');
-    place(112, 4, 'c?c?c');
+    place(112, 4, 'B?B?B');
+    place(117, 9, 'cccccccc');
     place(130, 8, 'BBBBBB');
+    place(132, 5, 'cccccc');
 
     // Part 4: Final Stretch (Boss Area)
     place(160, 10, 'BBBBBBBBBB');
-    place(162, 6, 'c?c?c?c');
-    
-    stairsUp(210, 4);
-    stairsDown(214, 4);
+    place(162, 6, 'B?B?B?B');
+    place(187, 9, 'cccccccc');
+
+    // A short recovery pocket and two low attack platforms frame the arena.
+    place(196, 9, 'B?B');
+    place(203, 10, 'BBB');
+    place(224, 10, 'BBB');
 
     // Part 5: Exit
-    stairsUp(230, 8);
+    place(234, 11, 'ccccc');
 
     // Flagpole
     place(240, 3, 'F');

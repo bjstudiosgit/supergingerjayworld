@@ -1,5 +1,7 @@
 import { CONFIG } from '../Constants';
 import { Entity } from '../Types';
+import { characterProfiles } from './CharacterProfiles';
+import { playSound } from '../Sound';
 
 const createImage = (src: string): HTMLImageElement => {
     const img = new Image();
@@ -21,6 +23,7 @@ const jayPowerupImages = [
     createImage('/motion/gingerjay/powerup3.png'),
     createImage('/motion/gingerjay/powerup4.png'),
 ];
+const jayAttackImages = [1, 2, 3].map(i => createImage(`/motion/gingerjay/attack${i}.png`));
 
 export class Player implements Entity {
     isPlayer = true;
@@ -37,9 +40,43 @@ export class Player implements Entity {
     walkDistance: number = 0;
     isInvincible: boolean = false;
     invincibilityTimer: number = 0;
-    
+    invincibilityDurationFrames: number = 1200; // 20 seconds at 60fps
+    invincibilitySpeedMultiplier: number = 1.2;
+    hurtCooldown: number = 0;
+    jumpHeld: boolean = false;
+    coyoteFrames = 0;
+    jumpBufferFrames = 0;
+    jumpInProgress = false;
+    attackHeld = false;
+    attackTimer = 0;
+    attackCooldown = 0;
+    attackTargets = new Set<object>();
+    powerFlash = 0;
+
+    get profile() {
+        return characterProfiles[this.characterId as keyof typeof characterProfiles] ?? characterProfiles.ginja;
+    }
+
+    resetActions() {
+        this.jumpHeld = false;
+        this.coyoteFrames = 0;
+        this.jumpBufferFrames = 0;
+        this.jumpInProgress = false;
+        this.attackHeld = false;
+        this.attackTimer = 0;
+        this.attackCooldown = 0;
+        this.attackTargets.clear();
+        this.powerFlash = 0;
+    }
+
+    getAttackBox() {
+        if ((this.state !== 'big' && !this.isInvincible) || this.attackTimer <= 0) return null;
+        return { x: this.facingRight ? this.x + this.w - 8 : this.x - this.profile.range + 8,
+            y: this.y + 8, w: this.profile.range, h: this.h - 8 };
+    }
+
     // Dynamics that can be overridden by subclasses
-    moveSpeed: number = 3;
+    moveSpeed: number = CONFIG.moveSpeed;
     jumpImpulse: number = CONFIG.jumpImpulse;
 
     // Subclasses can override these to provide their own images
@@ -59,9 +96,15 @@ export class Player implements Entity {
         return jayPowerupImages[0];
     }
 
+    getAnimationSpeed(): number {
+        return (Math.abs(this.vx) > this.moveSpeed * 1.1) ? 8 : 12;
+    }
+
     grow() {
         if (this.state === "small") {
             this.state = "big";
+            this.powerFlash = 30;
+            this.hurtCooldown = Math.max(this.hurtCooldown, 30);
             // Do not change height or y position so the player doesn't float
         }
     }
@@ -69,23 +112,39 @@ export class Player implements Entity {
     shrink() {
         if (this.state === "big") {
             this.state = "small";
+            this.attackTimer = 0;
             // Do not change height or y position
         }
     }
 
     update(keys: Record<string, boolean>) {
+        if (this.hurtCooldown > 0) this.hurtCooldown--;
+        if (this.powerFlash > 0) this.powerFlash--;
+        if (this.attackTimer > 0) this.attackTimer--;
+        if (this.attackCooldown > 0) this.attackCooldown--;
+        const attackPressed = !!keys['KeyX'];
+        if (attackPressed && !this.attackHeld && (this.state === 'big' || this.isInvincible) && this.attackCooldown === 0) {
+            this.attackTimer = 12;
+            this.attackCooldown = this.profile.cooldown;
+            this.attackTargets.clear();
+            playSound('stomp', 0.35);
+        }
+        this.attackHeld = attackPressed;
+
         if (this.isInvincible) {
             this.invincibilityTimer++;
-            // 15 seconds at 60fps = 900 frames
-            if (this.invincibilityTimer > 900) {
+            if (this.invincibilityTimer > this.invincibilityDurationFrames) {
                 this.isInvincible = false;
                 this.invincibilityTimer = 0;
             }
         }
 
-        const accel = this.onGround ? 0.25 : 0.15;
-        const maxSpeed = this.moveSpeed;
-        const friction = 0.75;
+        const isRunning = keys['ShiftLeft'] || keys['ShiftRight'] || keys['KeyB'];
+        const runMultiplier = (isRunning ? 1.6 : 1.0) * (this.isInvincible ? this.invincibilitySpeedMultiplier : 1.0);
+
+        const accel = (this.onGround ? 0.3 : 0.2) * runMultiplier;
+        const maxSpeed = this.profile.speed * runMultiplier;
+        const friction = 0.8;
         const moveThreshold = 0.3;
 
         const moveRight = keys['KeyD'] || keys['ArrowRight'];
@@ -96,24 +155,16 @@ export class Player implements Entity {
 
         if (moveRight) {
             if (this.vx < 0) {
-                this.vx = 0; // 💥 kill opposite momentum instantly
+                this.vx = 0; // 💥 quick stop when changing dir
             }
-            if (speedRatio < 0.7) {
-                this.vx += accel; // strong acceleration early
-            } else {
-                this.vx += accel * 0.3; // soft cap near max
-            }
+            this.vx += accel;
             this.facingRight = true;
         }
         if (moveLeft) {
             if (this.vx > 0) {
                 this.vx = 0; // 💥 same here
             }
-            if (speedRatio < 0.7) {
-                this.vx -= accel;
-            } else {
-                this.vx -= accel * 0.3;
-            }
+            this.vx -= accel;
             this.facingRight = false;
         }
 
@@ -142,15 +193,69 @@ export class Player implements Entity {
             if (this.vx < 0) this.vx = 0;
         }
 
-        if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && this.onGround) {
-            this.vy = window.innerWidth < 768 ? this.jumpImpulse * 0.85 : this.jumpImpulse;
+        const jumpPressed = !!(keys['Space'] || keys['ArrowUp'] || keys['KeyW']);
+        if (this.onGround) {
+            this.coyoteFrames = 6;
+            this.jumpInProgress = false;
+        } else if (this.coyoteFrames > 0) this.coyoteFrames--;
+        if (jumpPressed && !this.jumpHeld) this.jumpBufferFrames = 6;
+        else if (this.jumpBufferFrames > 0) this.jumpBufferFrames--;
+        if (this.jumpBufferFrames > 0 && this.coyoteFrames > 0) {
+            this.vy = jumpPressed ? this.profile.jump : -8;
             this.onGround = false;
+            this.coyoteFrames = 0;
+            this.jumpBufferFrames = 0;
+            this.jumpInProgress = true;
+            playSound('jump');
         }
+        if (!jumpPressed && this.jumpInProgress && this.vy < -6) this.vy = -6;
+        this.jumpHeld = jumpPressed;
     }
 
-    draw(ctx: CanvasRenderingContext2D, camX: number) {
+    drawSprite(ctx: CanvasRenderingContext2D, image: HTMLImageElement, x: number, y: number) {
+        let sprite = image;
+        if (this.characterId === 'ginja' && this.attackTimer > 0) {
+            const attack = jayAttackImages[Math.min(2, Math.floor((12 - this.attackTimer) / 4))];
+            if (attack.complete && attack.naturalWidth > 0) sprite = attack;
+        }
+        const height = this.h * (this.state === 'big' ? 1.08 : 1);
+        const width = Math.min(this.w * 1.65, height * sprite.naturalWidth / sprite.naturalHeight);
+        const scale = Math.min(width / sprite.naturalWidth, height / sprite.naturalHeight);
+        const drawW = sprite.naturalWidth * scale;
+        const drawH = sprite.naturalHeight * scale;
         ctx.save();
-        
+        if (this.hurtCooldown > 0 && Math.floor(this.hurtCooldown / 4) % 2 === 0) ctx.globalAlpha *= 0.4;
+        if (this.state === 'big') {
+            ctx.shadowColor = this.profile.color;
+            ctx.shadowBlur = this.powerFlash > 0 ? 20 : 5;
+        }
+        ctx.translate(x + this.w / 2, y + this.h);
+        if (!this.onGround) ctx.rotate(this.vy < 0 ? -0.06 : 0.06);
+        ctx.drawImage(sprite, -drawW / 2, -drawH, drawW, drawH);
+        ctx.restore();
+    }
+
+    drawPowerEffects(ctx: CanvasRenderingContext2D, camX: number, camY: number) {
+        const box = this.getAttackBox();
+        if (!box) return;
+        ctx.save();
+        ctx.strokeStyle = this.profile.color;
+        ctx.shadowColor = this.profile.color;
+        ctx.shadowBlur = 10;
+        ctx.lineWidth = 5;
+        ctx.globalAlpha = this.attackTimer / 12;
+        const centerX = (this.facingRight ? box.x : box.x + box.w) - camX;
+        const angle = this.facingRight ? 0 : Math.PI;
+        ctx.beginPath();
+        ctx.ellipse(centerX, box.y + box.h / 2 - camY, box.w, box.h / 2,
+            0, angle - Math.PI / 2, angle + Math.PI / 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    draw(ctx: CanvasRenderingContext2D, camX: number, camY: number = 0) {
+        ctx.save();
+
         // Flashing effect if invincible
         if (this.isInvincible) {
             if (Math.floor(this.invincibilityTimer / 5) % 2 === 0) {
@@ -163,7 +268,7 @@ export class Player implements Entity {
         }
 
         let drawX = this.x - camX;
-        let drawY = this.y;
+        let drawY = this.y - camY;
 
         // Flip context if facing left
         if (!this.facingRight) {
@@ -173,11 +278,10 @@ export class Player implements Entity {
             drawY = 0;
         }
 
-        const isMoving = Math.abs(this.vx) > 0.3;
-        // Adjust animation speed here (higher number = slower animation)
-        const animationSpeed = 15; 
+        const isMoving = this.onGround && Math.abs(this.vx) > 0.3;
+        const animationSpeed = this.getAnimationSpeed();
         const walkCycle = Math.floor(this.walkDistance / animationSpeed);
-        
+
         // Improved bounce mechanism: smooth sine wave based on walk distance
         const bounceAmount = 3;
         const bounce = isMoving ? Math.abs(Math.sin((this.walkDistance / animationSpeed) * Math.PI)) * -bounceAmount : 0;
@@ -196,10 +300,7 @@ export class Player implements Entity {
 
         if (currentImg && currentImg.complete && currentImg.naturalWidth > 0) {
             // Draw the individual image frame
-            ctx.drawImage(
-                currentImg, 
-                drawX, drawY + bounce, this.w, this.h
-            );
+            this.drawSprite(ctx, currentImg, drawX, drawY + bounce);
         } else {
             // Fallback if image not loaded
             ctx.fillStyle = this.state === "big" ? "#F1C40F" : "#E59866";

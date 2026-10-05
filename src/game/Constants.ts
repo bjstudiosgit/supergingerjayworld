@@ -1,10 +1,10 @@
 export const TILE = 40;
 
 export const CONFIG = {
-    gravity: 0.3,
+    gravity: 0.7,
     friction: 0.8,
-    jumpImpulse: -10,
-    moveSpeed: 2,
-    enemySpeed: 1,
+    jumpImpulse: -15,
+    moveSpeed: 3.5,
+    enemySpeed: 1.0,
     cameraLerp: 0.1
 };

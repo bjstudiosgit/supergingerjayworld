@@ -47,14 +47,14 @@ export const generateMap = (): string[] => {
     place(20, 9, 'B?B?B');
     place(22, 5, '?');
     pipe(27, 2);
-    pipe(34, 3);
-    pipe(46, 4);
+    pipe(34, 2);
+    pipe(46, 2);
     place(59, 11, 'B?B?B');
     place(62, 8, 'BBB?BBBB');
     place(75, 11, 'B?B');
     place(78, 8, 'B?BBB?BBBB');
     place(82, 4, 'BBB?');
-    pipe(98, 3);
+    pipe(98, 2);
     place(104, 9, 'BBB?B');
     place(114, 9, 'B?B?');
     place(118, 11, 'BB');

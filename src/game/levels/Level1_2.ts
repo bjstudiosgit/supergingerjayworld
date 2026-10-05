@@ -34,28 +34,24 @@ export const generateMap = (): string[] => {
         map[1][x] = 'S';
     }
 
-    // Drop in entrance (Proper SMB 1-2 style)
-    block(0, 0, 6, 12, 'S'); // Left wall structure
-    block(6, 0, 15, 2, 'S'); // Top ceiling
-    pipe(10, 3); // The pipe you "drop out of" (visual)
+    // Roof opening above the drop-in spawn.
+    block(8, 0, 2, 2, '.');
 
-    // Create a clear spawn area around x=2.5, y=6
-    // Actually, I'll move the initial structure so it's not overlapping the spawn.
-    // Or just clear a hole.
-    block(6, 2, 8, 8, '.');
+    // Normal entrance
+    block(0, 0, 1, 14, 'S'); // Just a small left border wall
 
     // First section: Staggered blocks
-    place(15, 10, 'BBBBBB');
-    place(17, 9, 'c');
-    place(18, 9, 'c');
+    place(15, 11, 'BBBBBB');
+    place(17, 10, 'c');
+    place(18, 10, 'c');
 
-    place(25, 6, 'BBBB');
-    place(32, 10, 'BBBB');
+    place(23, 9, 'BBBB');
+    place(30, 11, 'BBBB');
 
     // Pipe obstacle section
     pipe(50, 2);
-    pipe(58, 3);
-    pipe(66, 4);
+    pipe(58, 2);
+    pipe(66, 2);
 
     // Floating jumps over a pit
     const gaps = [146, 147];
@@ -70,12 +66,12 @@ export const generateMap = (): string[] => {
 
     // Middle structure: The "Bridge"
     block(115, 11, 15, 1, 'B'); // Bottom bridge (Lowered)
-    block(118, 8, 10, 1, 'B');  // Top bridge (Lowered)
-    place(120, 7, 'c?c');
+    // Side gaps let the 48px player hit the 40px question block without hitting a brick first.
+    place(121, 8, 'BB.?.BB');
 
     // More jumps
-    place(143, 10, 'S');
-    place(148, 10, 'S');
+    place(143, 11, 'SS');
+    place(148, 11, 'SS');
 
     // Staircase section
     const stairsUp = (startX: number, h: number) => {
@@ -85,20 +81,44 @@ export const generateMap = (): string[] => {
             }
         }
     };
-    stairsUp(160, 6);
-    block(166, 8, 10, 6, 'S'); // Raised ground
+    // Optional upper route. Floating steps leave a continuous lower corridor.
+    place(160, 11, 'SSS');
+    place(165, 9, 'SSS');
+    place(170, 7, 'SSS');
+    place(174, 6, 'SSSSSSSSSS');
+    place(186, 6, 'SSSSSSSSSSSSS');
+    place(176, 5, 'ccccc');
+    place(188, 5, 'cccccccc');
 
-    // Hidden top path (walk on the ceiling!)
-    // We already have ceiling at y=0,1. Let's make a gap in the secondary ceiling.
-    block(170, 4, 40, 1, 'S'); // Secondary ceiling
-    // If player can jump up here, they can walk to the end.
+    // Both routes have rewards; the lower route stays tall enough to walk through.
+    place(164, 12, 'ccc');
+    place(174, 12, 'cccc');
+    place(178, 10, 'B?B');
+    place(184, 12, 'cccc');
+    place(190, 10, 'B?B');
+    place(194, 12, 'cccc');
 
-    // Exit pipes
-    pipe(220, 3);
-    pipe(235, 4);
+    // The routes rejoin for a final enemy-and-coin section.
+    const finishCoins = [
+        { x: 202, y: 12 }, { x: 203, y: 11 }, { x: 204, y: 10 },
+        { x: 205, y: 11 }, { x: 206, y: 12 },
+        { x: 211, y: 12 }, { x: 212, y: 11 }, { x: 213, y: 10 },
+        { x: 214, y: 11 }, { x: 215, y: 12 }
+    ];
+    finishCoins.forEach(({ x, y }) => {
+        map[y][x] = 'c';
+    });
 
-    // Remove ceiling at the end for the flagpole/castle area
-    for (let x = 230; x < width; x++) {
+    pipe(220, 2);
+
+    // Eight steps give a clear launch point for the top of the flagpole.
+    stairsUp(223, 8);
+    place(226, 8, 'c');
+    place(228, 6, 'c');
+    place(230, 4, 'c');
+
+    // Open the roof early enough to create a readable exit chamber before the flag.
+    for (let x = 226; x < width; x++) {
         map[0][x] = '.';
         map[1][x] = '.';
     }

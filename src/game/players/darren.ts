@@ -25,7 +25,7 @@ export class DarrenPlayer extends Player {
         this.h = 72;
     }
 
-    draw(ctx: CanvasRenderingContext2D, camX: number) {
+    draw(ctx: CanvasRenderingContext2D, camX: number, camY: number = 0) {
         ctx.save();
         
         // Flashing effect if invincible
@@ -40,7 +40,7 @@ export class DarrenPlayer extends Player {
         }
 
         let drawX = this.x - camX;
-        let drawY = this.y;
+        let drawY = this.y - camY;
 
         // Flip context if facing left
         if (!this.facingRight) {
@@ -50,8 +50,8 @@ export class DarrenPlayer extends Player {
             drawY = 0;
         }
 
-        const isMoving = Math.abs(this.vx) > 0.5;
-        const animationSpeed = 15; 
+        const isMoving = this.onGround && Math.abs(this.vx) > 0.3;
+        const animationSpeed = this.getAnimationSpeed(); 
         const walkCycle = Math.floor(this.walkDistance / animationSpeed);
         
         // Improved bounce mechanism: smooth sine wave based on walk distance
@@ -61,7 +61,7 @@ export class DarrenPlayer extends Player {
         if (this.state === "big" || this.isInvincible) {
             const img = darrenGloveImages[isMoving ? (walkCycle % 4) : 0];
             if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, drawX, drawY + bounce, this.w, this.h);
+                this.drawSprite(ctx, img, drawX, drawY + bounce);
             } else {
                 ctx.fillStyle = "#FF0000";
                 ctx.fillRect(drawX, drawY + bounce, this.w, this.h);
@@ -69,7 +69,7 @@ export class DarrenPlayer extends Player {
         } else {
             const img = darrenWalkImages[isMoving ? (walkCycle % 4) : 0];
             if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, drawX, drawY + bounce, this.w, this.h);
+                this.drawSprite(ctx, img, drawX, drawY + bounce);
             } else {
                 ctx.fillStyle = "#3E2723";
                 ctx.fillRect(drawX, drawY + bounce, this.w, this.h);

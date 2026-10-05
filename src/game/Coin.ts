@@ -26,11 +26,11 @@ export class Coin implements Entity {
         this.animTimer++;
     }
 
-    draw(ctx: CanvasRenderingContext2D, camX: number) {
+    draw(ctx: CanvasRenderingContext2D, camX: number, camY: number = 0) {
         if (!this.active) return;
         
         const drawX = this.x - camX;
-        const drawY = this.y;
+        const drawY = this.y - camY;
         
         // Simple spinning animation by scaling width
         const scaleX = Math.abs(Math.sin(this.animTimer * 0.1));
